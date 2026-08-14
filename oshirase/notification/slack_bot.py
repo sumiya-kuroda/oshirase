@@ -15,7 +15,7 @@ DEFAULT_CONFIG = {
     "channel_id": "C09LT3GFS4T"
 }
 
-LEGACY_CONFIG_PATH = Path.home() / ".photon_mosaic" / "slackbot.json"
+LEGACY_CONFIG_PATH = Path.home() / ".oshirase" / "slackbot.json"
 
 
 def _default_config_dir() -> Path:
@@ -68,7 +68,7 @@ def test_write(message=None):
     if message is None:
         message = (
             "Hello World!\nHello People!"
-            "\n<https://github.com/sumiya-kuroda/photon-mosaic-roicat|GitHub>"
+            "\n<https://github.com/sumiya-kuroda/oshirase|GitHub>"
         )
     notify_slack(message)
 

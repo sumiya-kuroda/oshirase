@@ -12,12 +12,12 @@ setup(
         "matplotlib",
         "pyyaml",
         "natsort",
+        "swc_slack @ git+https://github.com/neuroinformatics-unit/swc-slack",
     ],
     extras_require={
         "roicat": [
             "roicat @ git+https://github.com/RichieHakim/ROICaT.git",
             "roiextractors @ git+https://github.com/RichieHakim/roiextractors",
-            "swc-slack @ git+https://github.com/neuroinformatics-unit/swc-slack",
         ],
     },
 )
