@@ -40,7 +40,15 @@ pip install torch torchvision torchaudio --index-url https://download.pytorch.or
       "bot_user": {
           "display_name": "2p-313",
           "always_online": true
-      }
+      },
+      "slash_commands": [
+          {
+              "command": "/oshirase-run",
+              "description": "Run an oshirase job",
+              "usage_hint": "<job_name>",
+              "should_escape": false
+          }
+      ]
   },
   "oauth_config": {
       "scopes": {
@@ -51,7 +59,8 @@ pip install torch torchvision torchaudio --index-url https://download.pytorch.or
               "channels:join",
               "groups:write",
               "im:write",
-              "mpim:write"
+              "mpim:write",
+              "commands"
           ]
       }
   },
@@ -77,6 +86,68 @@ pip install torch torchvision torchaudio --index-url https://download.pytorch.or
    `~/.oshirase/slackbot.json`.
 
 4. You can run `python -m oshirase.notification.slack_bot` to send a test message.
+
+5. To let people trigger jobs via `/oshirase-run <job_name>`, generate an
+   **app-level token** for Socket Mode: in your Slack app config, go to
+   *Basic Information → App-Level Tokens*, create a token with the
+   `connections:write` scope, and set it as `SLACK_BOT_APP_TOKEN` in the
+   environment the listener runs in (this is separate from the bot token
+   used for outbound notifications).
+
+## Running the Slack listener
+
+`/oshirase-run <job_name>` is handled by a long-running process that keeps a
+Socket Mode connection open (no public HTTPS endpoint needed, since it's not
+reachable from an HPC login node anyway):
+
+```sh
+pip install -e .          # pulls in slack_bolt and registers the console script
+export SLACK_BOT_APP_TOKEN=xapp-...
+oshirase-listen
+```
+
+`oshirase-listen` blocks, so keep it alive with either a quick tmux session:
+
+```sh
+tmux new -s oshirase-listen 'oshirase-listen'
+```
+
+or a `systemd --user` service for something more durable
+(`~/.config/systemd/user/oshirase-listen.service`):
+
+```ini
+[Unit]
+Description=oshirase Slack command listener
+
+[Service]
+ExecStart=%h/.conda/envs/photon-mosaic-pipeline/bin/oshirase-listen
+Environment=SLACK_BOT_APP_TOKEN=xapp-...
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
+```
+
+```sh
+systemctl --user enable --now oshirase-listen
+```
+
+**Note:** `/oshirase-run` only accepts one of the job names below (a fixed
+allowlist — no arbitrary command/script text is ever run), and there is
+currently no per-user authorization check: anyone with access to the Slack
+app can trigger any of these jobs.
+
+| Job name | Script | What it runs |
+|---|---|---|
+| `pm` | `jobs/hpc_jobs/run_pm.py` | Base photon-mosaic pipeline |
+| `roicat` | `jobs/hpc_jobs/run_roicat.py` | ROICaT tracking pipeline |
+| `pm_roicat` | `jobs/hpc_jobs/run_pm_roicat.py` | photon-mosaic, then ROICaT |
+| `pm_holo_ai228` | `jobs/hpc_jobs/run_pm_holo_ai228.py` | photon-mosaic (holo ai228 config) |
+| `pm_holo_ai230` | `jobs/hpc_jobs/run_pm_holo_ai230.py` | photon-mosaic (holo ai230 config) |
+| `pm_visual_ai228` | `jobs/hpc_jobs/run_pm_visual_ai228.py` | photon-mosaic (visual ai228 config) |
+| `pm_visual_ai230` | `jobs/hpc_jobs/run_pm_visual_ai230.py` | photon-mosaic (visual ai230 config) |
+| `pm_visual_mesoscan_np2` | `jobs/hpc_jobs/run_pm_visual_mesoscan_np2.py` | photon-mosaic (mesoscan np2 config) |
+| `echo` | `jobs/hpc_jobs/run_local_example.py` | No-SLURM smoke test (`cluster="local"`) |
 
 ## How to use
 

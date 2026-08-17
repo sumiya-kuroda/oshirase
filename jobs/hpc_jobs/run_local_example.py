@@ -16,9 +16,12 @@ EXAMPLE_CHECK = SuccessCheck(
     failure_message="❌ run_local_example job {job_id} failed. Check the log: {log_path}",
 )
 
-if __name__ == '__main__':
-    run_local_and_notify(
+def run_local_example():
+    return run_local_and_notify(
         argv=["python", "-c", "print('Done')"],
         check=EXAMPLE_CHECK,
         log_path="run_local_example.log",
     )
+
+if __name__ == '__main__':
+    run_local_example()
