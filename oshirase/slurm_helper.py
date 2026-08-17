@@ -1,11 +1,13 @@
 import os
 import subprocess
 import sys
+import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Optional, Sequence, Union
 
+import cloudpickle
 import submitit
 from submitit.helpers import CommandFunction
 
@@ -161,8 +163,6 @@ def monitor_roicat_and_notify(job: submitit.Job, interval: int = 30) -> bool:
 
 # --- Local (non-SLURM) execution ---------------------------------------------
 
-_DETACHED_ENV_FLAG = "_SLURM_SLACK_BOT_DETACHED"
-
 
 def run_local_and_notify(
     argv: Optional[Sequence[str]] = None,
@@ -177,21 +177,14 @@ def run_local_and_notify(
 ) -> Optional[submitit.Job]:
     """Run a local (non-SLURM) command (`argv`) or Python callable (`fn`/`args`/
     `kwargs`), then Slack-notify on completion. By default detaches into a
-    background process (via setsid) so the caller's terminal can be closed
-    immediately; the calling script is re-exec'd with an internal env-var flag
-    so the background copy runs the job instead of detaching again."""
+    background process so the caller's terminal can be closed immediately."""
     if argv is None and fn is None:
         raise ValueError("Specify either argv or fn")
 
-    if detach and os.environ.get(_DETACHED_ENV_FLAG) != "1":
-        log_f = open(log_path, "a") if log_path else subprocess.DEVNULL
-        subprocess.Popen(
-            [sys.executable] + sys.argv,
-            start_new_session=True,  # setsid -- detaches from the controlling terminal
-            stdin=subprocess.DEVNULL,
-            stdout=log_f,
-            stderr=subprocess.STDOUT,
-            env={**os.environ, _DETACHED_ENV_FLAG: "1"},
+    if detach:
+        _spawn_detached(
+            argv=argv, fn=fn, args=args, kwargs=kwargs, check=check,
+            folder=folder, interval=interval, log_path=log_path,
         )
         print("Detached background job started; you can close this terminal.")
         return None
@@ -204,3 +197,43 @@ def run_local_and_notify(
     )
     SlurmJobRunner.monitor_and_notify(job, check=check, interval=interval)
     return job
+
+
+def _spawn_detached(**call_kwargs) -> None:
+    """Run run_local_and_notify(**call_kwargs, detach=False) in a background
+    process, independent of how the *current* process was launched. Pickles
+    the call arguments with cloudpickle and hands them to a fresh `python -c`
+    child, rather than re-executing sys.argv -- sys.argv[0] isn't reliably
+    something sys.executable can re-run directly (e.g. a compiled Windows
+    console_scripts .exe launcher isn't a script file `python -c` can open,
+    unlike a plain `python some_script.py` invocation)."""
+    call_kwargs["detach"] = False
+    fd, payload_path = tempfile.mkstemp(suffix=".pkl")
+    with os.fdopen(fd, "wb") as f:
+        cloudpickle.dump(call_kwargs, f)
+
+    code = (
+        "import cloudpickle, os; "
+        f"_p = {payload_path!r}; "
+        "payload = cloudpickle.load(open(_p, 'rb')); "
+        "os.remove(_p); "
+        "from oshirase.slurm_helper import run_local_and_notify; "
+        "run_local_and_notify(**payload)"
+    )
+
+    log_path = call_kwargs.get("log_path")
+    log_f = open(log_path, "a") if log_path else subprocess.DEVNULL
+
+    popen_kwargs = dict(
+        stdin=subprocess.DEVNULL,
+        stdout=log_f,
+        stderr=subprocess.STDOUT,
+    )
+    if os.name == "nt":
+        popen_kwargs["creationflags"] = (
+            subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS
+        )
+    else:
+        popen_kwargs["start_new_session"] = True  # setsid -- detaches from the controlling terminal
+
+    subprocess.Popen([sys.executable, "-c", code], **popen_kwargs)

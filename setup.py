@@ -6,6 +6,7 @@ setup(
     packages=find_packages(),
     install_requires=[
         "submitit",
+        "cloudpickle",
         "slack_sdk",
         "slack_bolt",
         "fpdf2",
