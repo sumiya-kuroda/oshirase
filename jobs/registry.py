@@ -24,6 +24,8 @@ from jobs.hpc_jobs import run_pm_visual_ai230 as _run_pm_visual_ai230
 from jobs.hpc_jobs import run_pm_visual_mesoscan_np2 as _run_pm_visual_mesoscan_np2
 from jobs.hpc_jobs import run_local_example as _run_local_example
 
+from jobs.cayde_jobs import stiminterp as _stiminterp
+
 # Add `from jobs.cayde_jobs import <module> as _<alias>` lines here as job
 # scripts are added under jobs/cayde_jobs/, then register them below
 # alongside the hpc_jobs entries.
@@ -38,6 +40,7 @@ JOB_REGISTRY: Dict[str, Callable] = {
     "pm_visual_ai230": _run_pm_visual_ai230.run_pm,
     "pm_visual_mesoscan_np2": _run_pm_visual_mesoscan_np2.run_pm,
     "echo": _run_local_example.run_local_example,
+    "stiminterp": _stiminterp.run_stiminterp, # cayde
 }
 
 
