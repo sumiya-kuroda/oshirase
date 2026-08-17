@@ -14,6 +14,33 @@ from submitit.helpers import CommandFunction
 from oshirase.notification import slack_bot
 
 
+def slurm_time_to_min(t: str) -> int:
+    """Convert a SLURM time string to whole minutes for submitit's generic
+    ``timeout_min``.
+
+    The local ("local"/"debug") executor ignores every ``slurm_*``-prefixed
+    parameter, including ``slurm_time``. The generic ``timeout_min`` is the knob
+    that actually governs the wall-clock limit there; without it, the local
+    executor falls back to its short default (a few minutes) and long jobs get
+    SIGUSR2'd as timed-out. Setting ``timeout_min`` alongside ``slurm_time``
+    keeps both backends honest.
+
+    Handles 'HH:MM:SS', 'MM:SS', 'D-HH:MM:SS', and bare minutes.
+    """
+    days = 0
+    if "-" in t:
+        d, t = t.split("-", 1)
+        days = int(d)
+    parts = [int(p) for p in t.split(":")]
+    if len(parts) == 3:
+        h, m, s = parts
+    elif len(parts) == 2:
+        h, m, s = 0, parts[0], parts[1]
+    else:
+        h, m, s = 0, 0, parts[0]
+    return max(1, round(days * 24 * 60 + h * 60 + m + s / 60))
+
+
 @dataclass
 class SuccessCheck:
     """Describes how to decide success/failure from a submitit job's log file,
@@ -35,8 +62,15 @@ class SlurmJobRunner:
     all -- submitit's local executor ignores the slurm_*-prefixed resource
     parameters and just runs the command/callable as a local subprocess, so the
     same submit_command/submit_callable/monitor_and_notify API works unchanged.
+
+    Note: because the local executor ignores slurm_time, the wall-clock limit
+    there comes from the generic timeout_min parameter. This class always derives
+    timeout_min from `time` and sets both, so local jobs get the same limit as
+    SLURM jobs instead of the local executor's short default. On the SLURM backend
+    slurm_time still takes precedence, so behavior there is unchanged.
+
     See also run_local_and_notify() below for a self-detaching convenience
-    wrapper around that use case."""
+    wrapper around the local use case."""
 
     def __init__(
         self,
@@ -61,6 +95,7 @@ class SlurmJobRunner:
             slurm_partition=partition,
             slurm_job_name=job_name,
             slurm_time=time,
+            timeout_min=slurm_time_to_min(time),  # generic: governs local timeout
             mem_gb=mem_gb,
             slurm_cpus_per_task=cpus_per_task,
         )
@@ -174,22 +209,27 @@ def run_local_and_notify(
     interval: int = 10,
     detach: bool = True,
     log_path: Optional[Union[str, Path]] = None,
+    time: str = "72:00:00",
 ) -> Optional[submitit.Job]:
     """Run a local (non-SLURM) command (`argv`) or Python callable (`fn`/`args`/
     `kwargs`), then Slack-notify on completion. By default detaches into a
-    background process so the caller's terminal can be closed immediately."""
+    background process so the caller's terminal can be closed immediately.
+
+    `time` is the wall-clock limit (SLURM time-string format) passed through to
+    the runner as timeout_min; the default matches SlurmJobRunner's 72h so a long
+    preprocessing run isn't killed by the local executor's short default limit."""
     if argv is None and fn is None:
         raise ValueError("Specify either argv or fn")
 
     if detach:
         _spawn_detached(
             argv=argv, fn=fn, args=args, kwargs=kwargs, check=check,
-            folder=folder, interval=interval, log_path=log_path,
+            folder=folder, interval=interval, log_path=log_path, time=time,
         )
         print("Detached background job started; you can close this terminal.")
         return None
 
-    runner = SlurmJobRunner(folder=folder, cluster="local")
+    runner = SlurmJobRunner(folder=folder, cluster="local", time=time)
     job = (
         runner.submit_command(argv)
         if argv is not None

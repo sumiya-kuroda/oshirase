@@ -12,7 +12,7 @@
 ```sh
 conda activate photon-mosaic-pipeline # We will use the same env as photon-mosaic
 
-# General
+# General (Every time yoiuu add a new job you have to reinstall this)
 pip install -e .
 
 # ROICaT only
