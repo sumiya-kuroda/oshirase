@@ -10,7 +10,7 @@ CHECK = SuccessCheck(
 
 
 def _upload(sub_names: str, ses_names: str):
-    project = DataShuttle("my_first_project")
+    project = DataShuttle("SuKu_20250111_FeedbackRF")
     project.upload_custom(
         top_level_folder="derivatives",
         sub_names=sub_names,

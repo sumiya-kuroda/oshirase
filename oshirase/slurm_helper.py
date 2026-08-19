@@ -226,7 +226,7 @@ def run_local_and_notify(
             argv=argv, fn=fn, args=args, kwargs=kwargs, check=check,
             folder=folder, interval=interval, log_path=log_path, time=time,
         )
-        print("Detached background job started; you can close this terminal.")
+        print("Job submitted and currectly running in background.")
         return None
 
     runner = SlurmJobRunner(folder=folder, cluster="local", time=time)
