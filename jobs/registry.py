@@ -32,6 +32,7 @@ JOB_REGISTRY: Dict[str, Tuple[str, str]] = {
     "pm_visual_mesoscan_np2": ("jobs.hpc_jobs.run_pm_visual_mesoscan_np2", "run_pm"),
     "echo": ("jobs.hpc_jobs.run_local_example", "run_local_example"),
     "stiminterp": ("jobs.cayde_jobs.stiminterp", "run_stiminterp"),  # cayde
+    "upload": ("jobs.cayde_jobs.upload_to_ceph", "upload_to_ceph"),  # cayde
     # Add "<job_name>": ("jobs.cayde_jobs.<module>", "<function>") here as
     # job scripts are added under jobs/cayde_jobs/.
 }

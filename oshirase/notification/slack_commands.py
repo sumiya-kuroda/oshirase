@@ -44,8 +44,9 @@ def build_app(config_path=None) -> App:
     def handle_run(ack, command, respond):
         ack()
 
-        job_name = command.get("text", "").split()[:1]
-        job_name = job_name[0] if job_name else ""
+        tokens = command.get("text", "").split()
+        job_name = tokens[0] if tokens else ""
+        job_args = tokens[1:]
         user_id = command.get("user_id", "unknown")
 
         try:
@@ -56,20 +57,21 @@ def build_app(config_path=None) -> App:
 
         try:
             slack_bot.notify_slack(f"🚀 <@{user_id}> started `{job_name}`...")
-            _dispatch_detached(job_name)
+            _dispatch_detached(job_name, job_args)
         except Exception as e:
             respond(response_type="ephemeral", text=f"Failed to start `{job_name}`: {e}")
 
     return app
 
 
-def _dispatch_detached(job_name: str) -> None:
-    """Spawn a fully detached subprocess that resolves and runs the named job.
-    The child owns the whole submit + monitor_and_notify lifecycle, independent
-    of this listener process."""
+def _dispatch_detached(job_name: str, job_args: list = ()) -> None:
+    """Spawn a fully detached subprocess that resolves and runs the named job
+    with job_args passed through positionally. The child owns the whole
+    submit + monitor_and_notify lifecycle, independent of this listener
+    process."""
     code = (
         "from jobs.registry import resolve_job; "
-        f"resolve_job({job_name!r})()"
+        f"resolve_job({job_name!r})(*{tuple(job_args)!r})"
     )
     # A fresh interpreter doesn't inherit this process's sys.path fixup, so
     # give it the repo root via PYTHONPATH explicitly rather than relying on

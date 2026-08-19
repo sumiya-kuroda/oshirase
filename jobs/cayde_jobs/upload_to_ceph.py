@@ -8,31 +8,26 @@ CHECK = SuccessCheck(
     failure_message="❌ [cayde] uploading derivatives to ceph failed. Check the log: {log_path}",
 )
 
-project = DataShuttle("my_first_project")
 
-fn_upload = project.upload_custom(
-    top_level_folder="derivatives",
-    sub_names="sub-XX",
-    ses_names="ses-XXX_@*@",
-    datatype="funcimg",
-)
-
-def upload_to_ceph():
-    return run_local_and_notify(
-        fn=fn_upload,
-        check=CHECK,
-        log_path="run_stiminterp.log",
+def _upload(sub_names: str, ses_names: str):
+    project = DataShuttle("my_first_project")
+    project.upload_custom(
+        top_level_folder="derivatives",
+        sub_names=sub_names,
+        ses_names=ses_names,
+        datatype="funcimg",
     )
 
+
+def upload_to_ceph(sub_names: str = "sub-XX", ses_names: str = "ses-XXX_@*@"):
+    return run_local_and_notify(
+        fn=_upload,
+        args=(sub_names, ses_names),
+        check=CHECK,
+        log_path="run_upload_to_ceph.log",
+    )
+
+
 if __name__ == '__main__':
-    upload_to_ceph()
-
-
-project = DataShuttle("my_first_project")
-
-project.upload_custom(
-    top_level_folder="derivatives",
-    sub_names="all_sub",
-    ses_names="ses-001_@*@",
-    datatype="funcimg",
-)
+    import sys
+    upload_to_ceph(*sys.argv[1:])
