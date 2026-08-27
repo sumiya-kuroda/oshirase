@@ -252,7 +252,15 @@ def _spawn_detached(**call_kwargs) -> None:
     with os.fdopen(fd, "wb") as f:
         cloudpickle.dump(call_kwargs, f)
 
+    # jobs/ lives outside the oshirase package (see jobs/registry.py), so it's
+    # only importable once the repo root is on sys.path -- needed here because
+    # the payload's callable (e.g. a job's `_download`) is unpickled by
+    # reference into jobs.<category>_jobs.<module>, and this subprocess starts
+    # with a fresh sys.path that doesn't include it otherwise.
+    repo_root = Path(__file__).resolve().parents[1]
     code = (
+        "import sys; "
+        f"sys.path.insert(0, {str(repo_root)!r}); "
         "import cloudpickle, os; "
         f"_p = {payload_path!r}; "
         "payload = cloudpickle.load(open(_p, 'rb')); "
