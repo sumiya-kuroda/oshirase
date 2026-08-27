@@ -252,15 +252,7 @@ def _spawn_detached(**call_kwargs) -> None:
     with os.fdopen(fd, "wb") as f:
         cloudpickle.dump(call_kwargs, f)
 
-    # jobs/ lives outside the oshirase package (see jobs/registry.py), so it's
-    # only importable once the repo root is on sys.path -- needed here because
-    # the payload's callable (e.g. a job's `_download`) is unpickled by
-    # reference into jobs.<category>_jobs.<module>, and this subprocess starts
-    # with a fresh sys.path that doesn't include it otherwise.
-    repo_root = Path(__file__).resolve().parents[1]
     code = (
-        "import sys; "
-        f"sys.path.insert(0, {str(repo_root)!r}); "
         "import cloudpickle, os; "
         f"_p = {payload_path!r}; "
         "payload = cloudpickle.load(open(_p, 'rb')); "
@@ -272,10 +264,23 @@ def _spawn_detached(**call_kwargs) -> None:
     log_path = call_kwargs.get("log_path")
     log_f = open(log_path, "a") if log_path else subprocess.DEVNULL
 
+    # jobs/ lives outside the oshirase package (see jobs/registry.py), so it's
+    # only importable once the repo root is on sys.path. A sys.path.insert
+    # inside `code` above wouldn't be enough: submitit's local executor spawns
+    # a further nested `python -m submitit.core._submit` subprocess to
+    # actually run the job (to unpickle the callable, e.g. a job's
+    # `_download`), and in-process sys.path mutations don't cross process
+    # boundaries. PYTHONPATH does, at every level of the subprocess chain.
+    repo_root = str(Path(__file__).resolve().parents[1])
+    env = os.environ.copy()
+    existing = env.get("PYTHONPATH")
+    env["PYTHONPATH"] = os.pathsep.join([repo_root, existing]) if existing else repo_root
+
     popen_kwargs = dict(
         stdin=subprocess.DEVNULL,
         stdout=log_f,
         stderr=subprocess.STDOUT,
+        env=env,
     )
     if os.name == "nt":
         popen_kwargs["creationflags"] = (
