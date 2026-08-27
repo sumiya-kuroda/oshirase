@@ -4,15 +4,15 @@ from oshirase.slurm_helper import run_local_and_notify, SuccessCheck
 CHECK = SuccessCheck(
     stream="stdout",
     success_pattern="successfully",
-    success_message="✅ [cayde] downloading derivatives from ceph completed successfully!",
-    failure_message="❌ [cayde] downloading derivatives from ceph failed. Check the log: {log_path}",
+    success_message="✅ [cayde] downloading rawdata from ceph completed successfully!",
+    failure_message="❌ [cayde] downloading rawdata from ceph failed. Check the log: {log_path}",
 )
 
 
 def _download(sub_names: str, ses_names: str):
-    project = DataShuttle("my_first_project")
+    project = DataShuttle("SuKu_20250111_FeedbackRF")
     project.download_custom(
-        top_level_folder="derivatives",
+        top_level_folder="rawdata",
         sub_names=sub_names,
         ses_names=ses_names,
         datatype="funcimg",
