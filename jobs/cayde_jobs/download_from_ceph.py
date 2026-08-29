@@ -3,7 +3,7 @@ from oshirase.slurm_helper import run_local_and_notify, SuccessCheck
 
 CHECK = SuccessCheck(
     stream="stdout",
-    success_pattern="successfully",
+    success_pattern="successful", # Exiting after successful completion
     success_message="✅ [cayde] downloading rawdata from ceph completed successfully!",
     failure_message="❌ [cayde] downloading rawdata from ceph failed. Check the log: {log_path}",
 )
