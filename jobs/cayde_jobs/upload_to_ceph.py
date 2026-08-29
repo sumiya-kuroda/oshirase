@@ -7,7 +7,7 @@ from oshirase.slurm_helper import run_local_and_notify, SuccessCheck
 
 CHECK = SuccessCheck(
     stream="stdout",
-    success_pattern="successfully",
+    success_pattern="successful",
     success_message="✅ [cayde] uploading derivatives to ceph completed successfully!",
     failure_message="❌ [cayde] uploading derivatives to ceph failed. Check the log: {log_path}",
 )
@@ -39,13 +39,14 @@ def _delete_local(sub_names: str, ses_names: str):
 def upload_to_ceph(
     sub_names: str = "sub-XX",
     ses_names: str = "ses-XXX_@*@",
-    delete_local: bool = False,
+    delete_local: bool = True,
 ):
     result = run_local_and_notify(
         fn=_upload,
         args=(sub_names, ses_names),
         check=CHECK,
         log_path="run_upload_to_ceph.log",
+        detach=not delete_local,
     )
     if delete_local and result:      # only deletes after CHECK passed
         _delete_local(sub_names, ses_names)
