@@ -2,7 +2,7 @@ from oshirase.slurm_helper import run_local_and_notify, SuccessCheck
 
 CHECK = SuccessCheck(
     stream="stdout",
-    success_pattern="successfully",
+    success_pattern="successful", # because it uses submitit: Exiting after successful completion
     success_message="✅ [cayde] photon-mosaic-pipeline preprocessing - stiminterp completed successfully!",
     failure_message="❌ [cayde] photon-mosaic-pipeline preprocessing - stiminterp failed. Check the log: {log_path}",
 )
