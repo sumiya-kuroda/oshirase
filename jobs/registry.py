@@ -30,6 +30,7 @@ JOB_REGISTRY: Dict[str, Tuple[str, str]] = {
     "pm_visual_ai228": ("jobs.hpc_jobs.run_pm_visual_ai228", "run_pm"),
     "pm_visual_ai230": ("jobs.hpc_jobs.run_pm_visual_ai230", "run_pm"),
     "pm_visual_mesoscan_np2": ("jobs.hpc_jobs.run_pm_visual_mesoscan_np2", "run_pm"),
+    "brainreg": ("jobs.hpc_jobs.run_brainreg", "run_brainreg"),
     "echo": ("jobs.hpc_jobs.run_local_example", "run_local_example"),
     "stiminterp": ("jobs.cayde_jobs.stiminterp", "run_stiminterp"),  # cayde
     "upload": ("jobs.cayde_jobs.upload_to_ceph", "upload_to_ceph"),  # cayde
