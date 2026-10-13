@@ -87,7 +87,7 @@ class SlurmJobRunner:
         additional_parameters: Optional[dict] = None,
         after_this_job: Optional[submitit.Job] = None,
         dependency_kind: str = "afterok",
-        cluster: str = "auto",
+        cluster: Optional[str] = None,  # None = auto-detect (SLURM if available)
     ):
         self.executor = submitit.AutoExecutor(folder=str(folder), cluster=cluster)
 
