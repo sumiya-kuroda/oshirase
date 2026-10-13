@@ -1,4 +1,6 @@
 import subprocess
+import sys
+from importlib import metadata
 from pathlib import Path
 
 from oshirase.slurm_helper import SlurmJobRunner, SuccessCheck
@@ -18,6 +20,27 @@ def _channel_dir(in_dir: Path, chan: int) -> Path:
     return d
 
 
+def _brainreg_cmd() -> list:
+    """Command prefix that runs the brainreg CLI with this job's python.
+
+    brainreg is installed in the same env as oshirase (photon-mosaic-pipeline).
+    Rather than relying on its console script being on PATH, look up the
+    package's `brainreg` entry point and call it through sys.executable."""
+    try:
+        ep = next(
+            e for e in metadata.entry_points(group="console_scripts")
+            if e.name == "brainreg"
+        )
+    except StopIteration:
+        raise ModuleNotFoundError(
+            f"brainreg is not installed for {sys.executable}; "
+            "run `pip install brainreg` in photon-mosaic-pipeline"
+        ) from None
+    print("brainreg entry point:", ep.value)
+    code = f"import sys; from {ep.module} import {ep.attr}; sys.exit({ep.attr}())"
+    return [sys.executable, "-c", code]
+
+
 def _run_brainreg(sub: str, ses: str, atlas: str):
     in_dir = PROJ / "rawdata" / sub / ses / "anat" / "stitchedImages_100"
     out_dir = PROJ / "derivatives" / sub / ses / "anat" / "brainreg"
@@ -31,12 +54,9 @@ def _run_brainreg(sub: str, ses: str, atlas: str):
 
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # The outer oshirase_job.sh activates photon-mosaic-pipeline, so run brainreg
-    # inside its own conda env.
     subprocess.run(
         [
-            "conda", "run", "--no-capture-output", "-n", "brainreg",
-            "brainreg", str(red), str(out_dir),
+            *_brainreg_cmd(), str(red), str(out_dir),
             "-v", *VOXEL_SIZE,
             "--orientation", "psl",
             "--atlas", atlas,
@@ -53,7 +73,7 @@ def run_brainreg(sub: str = "sub-XXXXXXX", ses: str = "ses-XXX", atlas: str = "a
     # Switch atlas to allen_mouse_10um for full-res (more RAM/time).
     check = SuccessCheck(
         stream="stderr",
-        success_pattern="successful",
+        success_pattern="Finished",
         success_message=f"✅ brainreg job {{job_id}} ({sub}/{ses}) completed successfully!",
         failure_message=f"❌ brainreg job {{job_id}} ({sub}/{ses}) failed. Check the log",
     )
@@ -77,5 +97,4 @@ def run_brainreg(sub: str = "sub-XXXXXXX", ses: str = "ses-XXX", atlas: str = "a
 
 
 if __name__ == '__main__':
-    import sys
     run_brainreg(*sys.argv[1:])

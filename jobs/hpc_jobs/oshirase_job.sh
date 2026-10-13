@@ -20,7 +20,11 @@
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=s.kuroda@ucl.ac.uk
 
-source /etc/profile.d/modules.sh
+# Not every node has this file (e.g. enc1-*); `module` may still be inherited
+# from the submitting shell, so don't fail here.
+if [ -f /etc/profile.d/modules.sh ]; then
+  source /etc/profile.d/modules.sh
+fi
 echo "SLURM job info:"
 scontrol show job $SLURM_JOB_ID
 
@@ -30,7 +34,15 @@ export OMP_NUM_THREADS=1
 export MKL_NUM_THREADS=1
 
 module load miniconda
+# `conda activate` only works once conda's shell hook is loaded, which a
+# non-interactive batch shell doesn't do on its own.
+eval "$(conda shell.bash hook)"
 conda activate photon-mosaic-pipeline
+echo "Using python: $(which python)"
+if ! python -c "import oshirase" 2>/dev/null; then
+  echo "ERROR: oshirase not importable from $(which python); is photon-mosaic-pipeline activated?" >&2
+  exit 1
+fi
 
 if [ -z "$1" ]; then
   echo "Usage: sbatch _run_wrapper.sh <script.py> [extra python args...]" >&2
